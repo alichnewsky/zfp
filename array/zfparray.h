@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstddef>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 
@@ -12,6 +13,8 @@
 
 // #undef at end of file
 #define ZFP_HEADER_SIZE_BITS (ZFP_MAGIC_BITS + ZFP_META_BITS + ZFP_MODE_SHORT_BITS)
+// assuming largest wordsize=64, 96 -> 128 bits
+#define ZFP_HEADER_PADDED_SIZE_BYTES 16
 
 #define unused_(x) ((void)(x))
 
@@ -153,12 +156,18 @@ public:
   // write header with latest metadata
   void write_header(zfp::array::header& h) const
   {
-    DualBitstreamHandle dbh(zfp, &h, ZFP_HEADER_SIZE_BITS / CHAR_BIT);
+    // intermediate buffer needed (bitstream accesses multiples of wordsize)
+    uchar buffer[ZFP_HEADER_PADDED_SIZE_BYTES];
+
+    DualBitstreamHandle dbh(zfp, buffer, ZFP_HEADER_PADDED_SIZE_BYTES);
     ZfpFieldHandle zfh(type, nx, ny, nz);
 
     // write header
     zfp_write_header(zfp, zfh.field, ZFP_HEADER_FULL);
     stream_flush(zfp->stream);
+
+    // copy buffer to zfp::array::header
+    memcpy(h.buffer, buffer, ZFP_HEADER_SIZE_BITS / CHAR_BIT);
   }
 
 protected:
@@ -171,11 +180,11 @@ protected:
       bitstream* newBs;
       zfp_stream* zfp;
 
-      DualBitstreamHandle(zfp_stream* zfp, zfp::array::header* h, size_t headerSizeBytes) :
+      DualBitstreamHandle(zfp_stream* zfp, uchar* buffer, size_t bufferSizeBytes) :
         zfp(zfp)
       {
         oldBs = zfp_stream_bit_stream(zfp);
-        newBs = stream_open(h->buffer, headerSizeBytes);
+        newBs = stream_open(buffer, bufferSizeBytes);
 
         stream_rewind(newBs);
         zfp_stream_set_bit_stream(zfp, newBs);
@@ -286,8 +295,14 @@ protected:
   // and verify header contents (throws exceptions upon failure)
   void read_header(const zfp::array::header& h)
   {
-    // cast off const to satisfy bitstream constructor (we only perform reads anyway)
-    DualBitstreamHandle dbh(zfp, (zfp::array::header*)&h, ZFP_HEADER_SIZE_BITS / CHAR_BIT);
+    // copy header into padded buffer (bitstream requires multiples of words)
+    uchar buffer[ZFP_HEADER_PADDED_SIZE_BYTES];
+
+    size_t headerSizeBytes = ZFP_HEADER_SIZE_BITS / CHAR_BIT;
+    memcpy(buffer, h.buffer, headerSizeBytes);
+    memset(buffer + headerSizeBytes, 0, ZFP_HEADER_PADDED_SIZE_BYTES - headerSizeBytes);
+
+    DualBitstreamHandle dbh(zfp, buffer, ZFP_HEADER_PADDED_SIZE_BYTES);
     ZfpFieldHandle zfh;
 
     // read header to populate member variables associated with zfp_stream
@@ -340,6 +355,7 @@ protected:
 
 #undef unused_
 #undef ZFP_HEADER_SIZE_BITS
+#undef ZFP_HEADER_PADDED_SIZE_BYTES
 
 }
 
