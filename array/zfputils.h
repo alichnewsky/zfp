@@ -84,7 +84,7 @@ zfp::array* zfp::array::construct(const zfp::array::header& header, const uchar*
         break;
     }
 
-  } catch (const std::invalid_argument& e) {
+  } catch (const zfp::header_exception& e) {
     unused_(e);
   }
 

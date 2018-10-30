@@ -5,10 +5,10 @@
 #include <climits>
 #include <cstddef>
 #include <cstring>
-#include <stdexcept>
 #include <string>
 
 #include "zfp.h"
+#include "zfp/exception.h"
 #include "zfp/memory.h"
 
 // #undef at end of file
@@ -65,7 +65,7 @@ protected:
     // read header to populate member variables associated with zfp_stream
     try {
       read_header(h);
-    } catch (std::invalid_argument const & e) {
+    } catch (zfp::header_exception const & e) {
       unused_(e);
       zfp_stream_close(zfp);
       throw;
@@ -78,10 +78,9 @@ protected:
       uint mz = ((std::max(nz, 1u)) + 3) / 4;
       size_t blocks = (size_t)mx * (size_t)my * (size_t)mz;
       size_t describedSize = ((blocks * zfp->maxbits + stream_word_bits - 1) & ~(stream_word_bits - 1)) / CHAR_BIT;
-
       if (bufferSize < describedSize) {
         zfp_stream_close(zfp);
-        throw std::invalid_argument("ZFP header expects a longer buffer than what was passed in.");
+        throw zfp::header_exception("ZFP header expects a longer buffer than what was passed in.");
       }
     }
 
@@ -307,7 +306,7 @@ protected:
 
     // read header to populate member variables associated with zfp_stream
     if (zfp_read_header(zfp, zfh.field, ZFP_HEADER_FULL) != ZFP_HEADER_SIZE_BITS) {
-      throw std::invalid_argument("Invalid ZFP header.");
+      throw zfp::header_exception("Invalid ZFP header.");
     }
 
     // verify read-header contents
@@ -331,7 +330,7 @@ protected:
     }
 
     if (!errMsg.empty()) {
-      throw std::invalid_argument(errMsg);
+      throw zfp::header_exception(errMsg);
     }
 
     // set class variables
