@@ -25,7 +25,7 @@ allocate(size_t size)
 inline void*
 allocate_aligned(size_t size, size_t alignment)
 {
-#ifdef ZFP_ALIGNED_ALLOC
+#ifdef ZFP_WITH_ALIGNED_ALLOC
   void* ptr;
 
   #ifdef __INTEL_COMPILER
@@ -58,7 +58,7 @@ template <typename T>
 inline void
 deallocate_aligned(T* ptr)
 {
-#ifdef ZFP_ALIGNED_ALLOC
+#ifdef ZFP_WITH_ALIGNED_ALLOC
   if (ptr)
   #ifdef __INTEL_COMPILER
     _mm_free(ptr);
